@@ -1,0 +1,18 @@
+#!/bin/bash
+#$ -cwd
+#$ -V
+#$ -N 'RepeatMasker'
+#$ -q h14.q
+#$ -pe ompi511h14 36
+
+source ~/.bash_profile
+conda activate chromcomp
+
+#1 is the fasta assembly
+asm=$1
+lib=Dsil_RM203_DeepTE_repeatlibrary.fasta
+
+RepeatMasker assemblies/${asm}.fasta -pa 36 -gff -xsmall -lib $lib -dir assemblies/ 
+
+# Create a symlink with a predictable name for mapping steps
+ln -s assemblies/${asm}.fa.masked assemblies/${asm}.soft.fa
