@@ -4,6 +4,6 @@ This folder contains the scripts used to analyse WGS from 10 individuals belongi
 
 
 ## Author
-Silvia Garcia-Juan, Universitat de Barcelona, Spain
-Marta Olive-Muñiz, Universitat de Barcelona, Spain
-Sara Guirao-Rico, Universitat de Barcelona, Spain
+Silvia Garcia-Juan, Universitat de Barcelona, Spain\
+Marta Olive-Muñiz, Universitat de Barcelona, Spain\
+Sara Guirao-Rico, Universitat de Barcelona, Spain\
