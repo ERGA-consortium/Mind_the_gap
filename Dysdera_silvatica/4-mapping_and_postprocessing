@@ -1,0 +1,55 @@
+#! /bin/bash -x
+#$ -cwd
+#$ -V
+#$ -q h13.q
+#$ -pe ompi255h13 12
+#$ -N index_ref
+
+source ~/.bash_profile
+conda activate chromcomp
+
+## STEP 1 - INDEX REFERENCE ##
+
+path_assembly=$HOME/Mind_the_gaps/2-masking/assemblies
+asm=Dsil_V2.3_genome.fasta.masked
+
+bwa index ${path_assembly}/${asm}
+# Generate FASTA index (.fai) so downstream tools know chromosome lengths.
+samtools faidx ${path_assembly}/${asm}
+# Create a sequence dictionary (.dict) required by GATK.
+gatk CreateSequenceDictionary -R ${path_assembly}/${asm}
+
+## STEP 2 - MAPPING ##
+
+sample=$1 #name of the sample
+refgen_path=~/Mind_the_gaps/2-masking/assemblies
+asm=Dsil_V2.3_genome.fasta.masked
+trim_reads_path=~/Mind_the_gaps/3-quality_raw_reads/trimmomatic_results/trim
+
+
+# Extract metadata (flowcell ID, lane) for read‑group tags; helps when multiple libraries per sample need merging or when checking platform‑specific biases.
+fastq_1=$trim_reads_path/${sample}_R1_paired.fq.gz
+
+name=$(basename $fastq_1 | sed 's/_1.trim.fastq.gz//') # this might change based on your file
+flowcell=$(zcat $fastq_1 | head -n 1 | cut -d ':' -f3) # this might change based on your file
+lane=$(zcat $fastq_1 | head -n 1 | cut -d ':' -f4) 
+
+
+## Align and sort in a single streaming pipe.
+bwa mem -M -t 16 -R "@RG\tID:${sample}\tPU:${flowcell}.${lane}.${name}\tSM:${sample}\tPL:illumina" ${refgen_path}/${asm} $trim_reads_path/${sample}_R1_paired.fq.gz $trim_reads_path/${sample}_R2_paired.fq.gz | samtools sort -@8 -o bam/${sample}.${asm}.bam
+
+## Basic alignment QC (flagstat) for later analysis
+samtools flagstat bam/${sample}.${asm}.bam > qc/${sample}.${asm}.flagstat.txt
+
+## STEP 3 - MARK DUPLICATES ##
+
+SAMPLE=$1 #name of the sample
+asm=Dsil_V2.3_genome.fasta.masked
+
+samtools sort -@8 bam/${SAMPLE}.${asm}.bam -o bam/${SAMPLE}.${asm}_sorted.bam
+
+## Duplicate marking & indexing
+gatk MarkDuplicates -I bam/${SAMPLE}.${asm}.bam -O bam/${SAMPLE}.${asm}.dedup.bam -M $HOME/Mind_the_gaps/4-mapping_and_postprocessing_v2/qc/${SAMPLE}.${asm}.dup.txt -MAX_FILE_HANDLES_FOR_READ_ENDS_MAP 1000
+
+## once duplicates marking is done
+samtools index bam/${SAMPLE}.${asm}.dedup.bam
